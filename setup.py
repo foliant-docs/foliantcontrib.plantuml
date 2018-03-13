@@ -1,7 +1,7 @@
 from setuptools import setup
 
 
-SHORT_DESCRIPTION = 'PlantUML diagrams preprocessors for Foliant.'
+SHORT_DESCRIPTION = 'PlantUML diagrams preprocessor for Foliant.'
 
 try:
     with open('README.md', encoding='utf8') as readme:
