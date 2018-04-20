@@ -23,7 +23,7 @@ class Preprocessor(BasePreprocessor):
 
         self._cache_path = self.project_path / self.options['cache_dir']
 
-        self.logger = self.logger.getChild('epsconvert')
+        self.logger = self.logger.getChild('plantuml')
 
         self.logger.debug(f'Preprocessor inited: {self.__dict__}')
 
