@@ -23,6 +23,10 @@ class Preprocessor(BasePreprocessor):
 
         self._cache_path = self.project_path / self.options['cache_dir']
 
+        self.logger = self.logger.getChild('epsconvert')
+
+        self.logger.debug(f'Preprocessor inited: {self.__dict__}')
+
     def _get_command(
             self,
             options: Dict[str, OptionValue],
@@ -71,10 +75,14 @@ class Preprocessor(BasePreprocessor):
         :returns: Image ref
         '''
 
+        self.logger.debug(f'Processing PlantUML diagram, options: {options}, body: {body}')
+
         body_hash = md5(f'{body}'.encode())
         body_hash.update(str(self.options).encode())
 
         diagram_src_path = self._cache_path / 'plantuml' / f'{body_hash.hexdigest()}.diag'
+
+        self.logger.debug(f'Diagram definition file path: {diagram_src_path}')
 
         params = self.options.get('params', {})
 
@@ -82,9 +90,13 @@ class Preprocessor(BasePreprocessor):
 
         diagram_path = diagram_src_path.with_suffix(f'.{diagram_format}')
 
+        self.logger.debug(f'Diagram image path: {diagram_path}')
+
         img_ref = f'![{options.get("caption", "")}]({diagram_path.absolute().as_posix()})'
 
         if diagram_path.exists():
+            self.logger.debug('Diagram image found in cache')
+
             return img_ref
 
         diagram_src_path.parent.mkdir(parents=True, exist_ok=True)
@@ -92,11 +104,17 @@ class Preprocessor(BasePreprocessor):
         with open(diagram_src_path, 'w', encoding='utf8') as diagram_src_file:
             diagram_src_file.write(body)
 
+            self.logger.debug(f'Diagram definition written into the file')
+
         try:
             command = self._get_command(options, diagram_src_path)
             run(command, shell=True, check=True, stdout=PIPE, stderr=STDOUT)
 
+            self.logger.debug(f'Diagram image saved')
+
         except CalledProcessError as exception:
+            self.logger.error(str(exception))
+
             raise RuntimeError(
                 f'Processing of PlantUML diagram {diagram_src_path} failed: {exception.output.decode()}'
             )
@@ -122,8 +140,13 @@ class Preprocessor(BasePreprocessor):
         return self.pattern.sub(_sub, content)
 
     def apply(self):
+        self.logger.info('Applying preprocessor')
+
         for markdown_file_path in self.working_dir.rglob('*.md'):
             with open(markdown_file_path, encoding='utf8') as markdown_file:
                 content = markdown_file.read()
+
             with open(markdown_file_path, 'w', encoding='utf8') as markdown_file:
                 markdown_file.write(self.process_plantuml(content))
+
+        self.logger.info('Preprocessor applied')
