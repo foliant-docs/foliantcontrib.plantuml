@@ -120,9 +120,11 @@ class Preprocessor(BasePreprocessor):
             # rename the diagram file for us not to use it as cached on the next run
             diagram_path.rename('_error'.join(os.path.splitext(diagram_path)))
 
-            raise RuntimeError(
-                f'Processing of PlantUML diagram {diagram_src_path} failed: {exception.output.decode()}'
-            )
+            print(f'\nProcessing of PlantUML diagram {diagram_src_path} failed: {exception.output.decode()}')
+            return ''
+            # raise RuntimeError(
+            #     f'Processing of PlantUML diagram {diagram_src_path} failed: {exception.output.decode()}'
+            # )
 
         return img_ref
 
