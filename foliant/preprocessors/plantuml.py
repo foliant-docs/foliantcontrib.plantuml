@@ -2,6 +2,8 @@
 PlantUML diagrams preprocessor for Foliant documenation authoring tool.
 '''
 
+import re
+
 from pathlib import Path
 from hashlib import md5
 from subprocess import run, PIPE, STDOUT, CalledProcessError
@@ -15,6 +17,7 @@ class Preprocessor(BasePreprocessor):
     defaults = {
         'cache_dir': Path('.diagramscache'),
         'plantuml_path': 'plantuml',
+        'parse_raw': False,
     }
     tags = 'plantuml',
 
@@ -131,13 +134,35 @@ class Preprocessor(BasePreprocessor):
         :returns: Markdown content with diagrams definitions replaced with image refs
         '''
 
+        raw_pattern = re.compile(r'^(\s*)(@startuml.+?@enduml)'
+                                 r'|(?<=\n)(\s*)(@startuml.+?@enduml)',
+                                 flags=re.DOTALL)
+
         def _sub(diagram) -> str:
             return self._process_plantuml(
                 self.get_options(diagram.group('options')),
                 diagram.group('body')
             )
 
-        return self.pattern.sub(_sub, content)
+        def _sub_raw(diagram) -> str:
+            '''
+            sub function for raw diagrams replacement (without <plantuml>
+            tags). Handles alternation and returns spaces which were used to
+            filter out inline mentions of @startuml
+            '''
+            gs = diagram.groups()
+            spaces = gs[0] or gs[2]
+            body = gs[1] or gs[3]
+            return spaces + self._process_plantuml({}, body)
+
+        # process tags
+        processed = self.pattern.sub(_sub, content)
+
+        # process raw diagrams
+        if self.options['parse_raw']:
+            processed = raw_pattern.sub(_sub_raw, processed)
+
+        return processed
 
     def apply(self):
         self.logger.info('Applying preprocessor')

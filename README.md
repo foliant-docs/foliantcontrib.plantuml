@@ -26,6 +26,7 @@ preprocessors:
         plantuml_path: plantuml
         params:
             ...
+        parse_raw: true
 ```
 
 `cache_dir`
@@ -47,6 +48,9 @@ preprocessors:
                     config: !path plantuml.cfg
 
     To see the full list of params, run the command that launches PlantUML, with `-h` command line option.
+
+`parse_raw`
+:   If this flag is `true` preprocessor will also process all PlantUML diagrams which are not wrapped in `<<plantuml>...</plantuml>` tags.
 
 ## Usage
 
