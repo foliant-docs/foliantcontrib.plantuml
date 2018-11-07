@@ -3,7 +3,6 @@ PlantUML diagrams preprocessor for Foliant documenation authoring tool.
 '''
 
 import re
-
 from pathlib import Path
 from hashlib import md5
 from subprocess import run, PIPE, STDOUT, CalledProcessError
@@ -118,9 +117,16 @@ class Preprocessor(BasePreprocessor):
         except CalledProcessError as exception:
             self.logger.error(str(exception))
 
-            raise RuntimeError(
-                f'Processing of PlantUML diagram {diagram_src_path} failed: {exception.output.decode()}'
-            )
+            if diagram_path.exists():
+                error_diagram_path = diagram_path.parent / (diagram_path.stem + '_error' + diagram_path.suffix)
+                diagram_path.rename(error_diagram_path)
+
+                self.logger.error(
+                    f'Processing of PlantUML diagram {diagram_src_path} failed: {exception.output.decode()}'
+                )
+
+            else:
+                raise RuntimeError(exception)
 
         return img_ref
 
@@ -134,9 +140,11 @@ class Preprocessor(BasePreprocessor):
         :returns: Markdown content with diagrams definitions replaced with image refs
         '''
 
-        raw_pattern = re.compile(r'^(\s*)(@startuml.+?@enduml)'
-                                 r'|(?<=\n)(\s*)(@startuml.+?@enduml)',
-                                 flags=re.DOTALL)
+        raw_pattern = re.compile(
+            r'^(\s*)(@startuml.+?@enduml)' +
+            r'|(?<=\n)(\s*)(@startuml.+?@enduml)',
+            flags=re.DOTALL
+        )
 
         def _sub(diagram) -> str:
             return self._process_plantuml(
@@ -146,19 +154,20 @@ class Preprocessor(BasePreprocessor):
 
         def _sub_raw(diagram) -> str:
             '''
-            sub function for raw diagrams replacement (without <plantuml>
+            Sub function for raw diagrams replacement (without ``<plantuml>``
             tags). Handles alternation and returns spaces which were used to
-            filter out inline mentions of @startuml
+            filter out inline mentions of ``@startuml``
             '''
-            gs = diagram.groups()
-            spaces = gs[0] or gs[2]
-            body = gs[1] or gs[3]
+
+            diagram_groups = diagram.groups()
+            spaces = diagram_groups[0] or diagram_groups[2]
+            body = diagram_groups[1] or diagram_groups[3]
             return spaces + self._process_plantuml({}, body)
 
-        # process tags
+        # Process tags
         processed = self.pattern.sub(_sub, content)
 
-        # process raw diagrams
+        # Process raw diagrams
         if self.options['parse_raw']:
             processed = raw_pattern.sub(_sub_raw, processed)
 
