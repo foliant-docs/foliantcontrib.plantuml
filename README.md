@@ -50,7 +50,7 @@ preprocessors:
     To see the full list of params, run the command that launches PlantUML, with `-h` command line option.
 
 `parse_raw`
-:   If this flag is `true` preprocessor will also process all PlantUML diagrams which are not wrapped in `<<plantuml>...</plantuml>` tags.
+:   If this flag is `true`, the preprocessor will also process all PlantUML diagrams which are not wrapped in `<<plantuml>...</plantuml>` tags. Default value is `false`.
 
 ## Usage
 
@@ -89,3 +89,5 @@ By default, diagrams are in PNG. But this diagram is in EPS:
     @enduml
 </plantuml>
 ```
+
+Sometimes it can be necessary to process auto-generated documents that contain multiple PlantUML diagrams definitions without using Foliant-specific tags syntax. Use the `parse_raw` option in these cases.
