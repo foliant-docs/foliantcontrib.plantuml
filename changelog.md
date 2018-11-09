@@ -1,3 +1,7 @@
+# 1.0.4
+
+-   Additionally сheck if diagram image is not saved.
+
 # 1.0.3
 
 -   Add `parse_raw` option.
