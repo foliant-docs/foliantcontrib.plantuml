@@ -112,7 +112,13 @@ class Preprocessor(BasePreprocessor):
             command = self._get_command(options, diagram_src_path)
             run(command, shell=True, check=True, stdout=PIPE, stderr=STDOUT)
 
-            self.logger.debug(f'Diagram image saved')
+            if diagram_path.exists():
+                self.logger.debug(f'Diagram image saved')
+
+            else:
+                self.logger.error(
+                    f'Processing of PlantUML diagram {diagram_src_path} failed: diagram image not saved'
+                )
 
         except CalledProcessError as exception:
             self.logger.error(str(exception))
@@ -126,7 +132,7 @@ class Preprocessor(BasePreprocessor):
                 )
 
             else:
-                raise RuntimeError(exception)
+                raise RuntimeError(f'Failed: {exception.output.decode()}')
 
         return img_ref
 
