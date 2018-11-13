@@ -1,3 +1,7 @@
+# 1.0.5 (under development)
+
+-   Do not rewrite source Markdown file if an error occurs.
+
 # 1.0.4
 
 -   Additionally сheck if diagram image is not saved.
