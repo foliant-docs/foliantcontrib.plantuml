@@ -15,7 +15,7 @@ setup(
     name='foliantcontrib.plantuml',
     description=SHORT_DESCRIPTION,
     long_description=LONG_DESCRIPTION,
-    version='1.0.4',
+    version='1.0.5',
     author='Artemy Lomov',
     author_email='artemy@lomov.ru',
     url='https://github.com/foliant-docs/foliantcontrib.plantuml',
