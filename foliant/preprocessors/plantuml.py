@@ -10,6 +10,7 @@ from typing import Dict
 OptionValue = int or float or bool or str
 
 from foliant.preprocessors.base import BasePreprocessor
+from foliant.utils import output
 
 
 class Preprocessor(BasePreprocessor):
@@ -116,9 +117,11 @@ class Preprocessor(BasePreprocessor):
                 self.logger.debug(f'Diagram image saved')
 
             else:
-                self.logger.error(
-                    f'Processing of PlantUML diagram {diagram_src_path} failed: diagram image not saved'
-                )
+                error_message = f'Processing of PlantUML diagram {diagram_src_path} failed: diagram image not saved'
+
+                output(error_message, self.quiet)
+
+                self.logger.error(error_message)
 
         except CalledProcessError as exception:
             self.logger.error(str(exception))
@@ -127,9 +130,14 @@ class Preprocessor(BasePreprocessor):
                 error_diagram_path = diagram_path.parent / (diagram_path.stem + '_error' + diagram_path.suffix)
                 diagram_path.rename(error_diagram_path)
 
-                self.logger.error(
-                    f'Processing of PlantUML diagram {diagram_src_path} failed: {exception.output.decode()}'
+                error_message = (
+                    f'Processing of PlantUML diagram {diagram_src_path} failed: ' +
+                    f'{exception.output.decode()}'
                 )
+
+                output(error_message, self.quiet)
+
+                self.logger.error(error_message)
 
             else:
                 raise RuntimeError(f'Failed: {exception.output.decode()}')
