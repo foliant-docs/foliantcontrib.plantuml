@@ -15,6 +15,7 @@ setup(
     name='foliantcontrib.plantuml',
     description=SHORT_DESCRIPTION,
     long_description=LONG_DESCRIPTION,
+    long_description_content_type='text/markdown',
     version='1.0.6',
     author='Artemy Lomov',
     author_email='artemy@lomov.ru',
