@@ -1,3 +1,7 @@
+# 1.0.6
+
+-   Attributes of `<plantuml>` tag have higher priority than config file options.
+
 # 1.0.5
 
 -   Do not rewrite source Markdown file if an error occurs.
