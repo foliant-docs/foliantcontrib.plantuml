@@ -1,3 +1,5 @@
+[![](https://img.shields.io/pypi/v/foliantcontrib.plantuml.svg)](https://pypi.org/project/foliantcontrib.plantuml/) [![](https://img.shields.io/github/v/tag/foliant-docs/foliantcontrib.plantuml.svg?label=GitHub)](https://github.com/foliant-docs/foliantcontrib.plantuml)
+
 # PlantUML Diagrams Preprocessor for Foliant
 
 [PlantUML](http://plantuml.com/) is a tool to generate diagrams from plain text. This preprocessor finds PlantUML diagrams definitions in the source and converts them into images on the fly during project build.
@@ -50,16 +52,16 @@ preprocessors:
     To see the full list of params, run the command that launches PlantUML, with `-h` command line option.
 
 `parse_raw`
-:   If this flag is `true`, the preprocessor will also process all PlantUML diagrams which are not wrapped in `<<plantuml>...</plantuml>` tags. Default value is `false`.
+:   If this flag is `true`, the preprocessor will also process all PlantUML diagrams which are not wrapped in `<plantuml>...</plantuml>` tags. Default value is `false`.
 
 ## Usage
 
-To insert a diagram definition in your Markdown source, enclose it between `<<plantuml>...</plantuml>` tags (indentation inside tags is optional):
+To insert a diagram definition in your Markdown source, enclose it between `<plantuml>...</plantuml>` tags (indentation inside tags is optional):
 
 ```markdown
 Here’s a diagram:
 
-<<plantuml>
+<plantuml>
     @startuml
         ...
     @enduml
@@ -71,7 +73,7 @@ To set a caption, use `caption` option:
 ```markdown
 Diagram with a caption:
 
-<<plantuml caption="Sample diagram from the official site">
+<plantuml caption="Sample diagram from the official site">
     @startuml
         ...
     @enduml
@@ -83,7 +85,7 @@ You can override `params` values from the preprocessor config for each diagram. 
 ```markdown
 By default, diagrams are in PNG. But this diagram is in EPS:
 
-<<plantuml caption="Vector diagram" format="eps">
+<plantuml caption="Vector diagram" format="eps">
     @startuml
         ...
     @enduml
