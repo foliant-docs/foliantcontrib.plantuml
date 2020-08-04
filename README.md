@@ -93,3 +93,5 @@ By default, diagrams are in PNG. But this diagram is in EPS:
 ```
 
 Sometimes it can be necessary to process auto-generated documents that contain multiple PlantUML diagrams definitions without using Foliant-specific tags syntax. Use the `parse_raw` option in these cases.
+
+If the `format` param is set to `svg`, the preprocessor will output raw SVG data directly into the resulting HTML. To prevent this behavior, set the `as_image` param to `true`.

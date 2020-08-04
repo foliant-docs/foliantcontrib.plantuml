@@ -100,7 +100,11 @@ class Preprocessor(BasePreprocessor):
         if diagram_path.exists():
             self.logger.debug('Diagram image found in cache')
 
-            return img_ref
+            if diagram_format != 'svg' or {**params, **options}.get('as_image', False):
+                return img_ref
+            else:
+                with open(diagram_path, 'r') as image_file:
+                    return image_file.read()
 
         diagram_src_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -145,7 +149,11 @@ class Preprocessor(BasePreprocessor):
             else:
                 raise RuntimeError(f'Failed: {exception.output.decode()}')
 
-        return img_ref
+        if diagram_format != 'svg' or {**params, **options}.get('as_image', False):
+            return img_ref
+        else:
+            with open(diagram_path, 'r') as image_file:
+                return image_file.read()
 
     def process_plantuml(self, content: str) -> str:
         '''Find diagram definitions and replace them with image refs.
