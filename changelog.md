@@ -1,3 +1,8 @@
+# 1.0.7
+
+-   Config options now can be overriden in tag options.
+-   Add `as_image` option, which allows (when `false`) to insert svg-code instead of image into the document.
+
 # 1.0.6
 
 -   Attributes of `<plantuml>` tag have higher priority than config file options.
