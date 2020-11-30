@@ -222,8 +222,6 @@ class Preprocessor(BasePreprocessor):
 
         # Process tags
         processed = self.pattern.sub(_sub, content)
-        with open('tmp.md', 'w') as f:
-            f.write(processed)
         # Process raw diagrams
         if self.options['parse_raw']:
             processed = raw_pattern.sub(_sub_raw, processed)
