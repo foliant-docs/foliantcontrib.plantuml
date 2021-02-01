@@ -1,4 +1,4 @@
-# 1.0.7
+# 1.0.8
 
 -   Config options now can be overriden in tag options.
 -   Add `as_image` option, which allows (when `false`) to insert svg-code instead of image into the document.
