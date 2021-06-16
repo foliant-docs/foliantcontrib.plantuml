@@ -6,15 +6,18 @@ import re
 from pathlib import Path, PosixPath
 from hashlib import md5
 from subprocess import run, PIPE, STDOUT, CalledProcessError
-from typing import Dict
-OptionValue = int or float or bool or str
+from typing import Dict, Optional
 
 from foliant.preprocessors.base import BasePreprocessor
 from foliant.utils import output
 from foliant.preprocessors.utils.combined_options import CombinedOptions
+from foliant.preprocessors.utils.preprocessor_ext import BasePreprocessorExt
 
 
-class Preprocessor(BasePreprocessor):
+OptionValue = Optional(int, float, bool, str)
+
+
+class Preprocessor(BasePreprocessorExt):
     defaults = {
         'cache_dir': Path('.diagramscache'),
         'plantuml_path': 'plantuml',
@@ -229,16 +232,6 @@ class Preprocessor(BasePreprocessor):
         return processed
 
     def apply(self):
-        self.logger.info('Applying preprocessor')
-
-        for markdown_file_path in self.working_dir.rglob('*.md'):
-            with open(markdown_file_path, encoding='utf8') as markdown_file:
-                content = markdown_file.read()
-
-            processed_content = self.process_plantuml(content)
-
-            if processed_content:
-                with open(markdown_file_path, 'w', encoding='utf8') as markdown_file:
-                    markdown_file.write(processed_content)
+        self._process_all_files(func=self.process_plantuml, buffer=False)
 
         self.logger.info('Preprocessor applied')
