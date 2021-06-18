@@ -1,3 +1,9 @@
+# 1.0.9
+
+-   Diagrams with same options now generate in single PlantUML instance.
+-   Error tracebacks now are shown in console, _error images are not generated_.
+-   Markdown image tags for broken diagrams are not inserted so they won't crash the build of the project.
+
 # 1.0.8
 
 -   Config options now can be overriden in tag options.
