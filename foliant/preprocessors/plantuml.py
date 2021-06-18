@@ -54,7 +54,7 @@ def parse_diagram_source(source: str) -> Optional[str]:
     :returns: parsed diagram source or None if parsing failed.
     """
 
-    pattern = re.compile(r'(@startuml.+\n)\s*(@enduml)', flags=re.DOTALL)
+    pattern = re.compile(r'(@startuml.+?\n)\s*(@enduml)', flags=re.DOTALL)
     match = pattern.search(source)
     if match:
         return match.group(1) + match.group(2)
@@ -82,7 +82,7 @@ def generate_args(original_params: dict, diag_format: str, plantuml_path: str) -
     for option_name, option_value in sorted(params.items()):
         if option_value is True:
             components.append(f'-{option_name}')
-        else:
+        elif option_value is not False:
             components.extend((f'-{option_name}', f'{option_value}'))
 
     return components
