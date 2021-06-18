@@ -3,66 +3,28 @@ PlantUML diagrams preprocessor for Foliant documenation authoring tool.
 '''
 
 import re
-import os
-from pathlib import Path, PosixPath
-from hashlib import md5
-from subprocess import Popen, run, PIPE, STDOUT, CalledProcessError
-from typing import Dict, Union, List, Optional
+
 from collections import namedtuple
+from hashlib import md5
+from pathlib import Path
+from pathlib import PosixPath
+from subprocess import PIPE
+from subprocess import Popen
+from typing import Optional
+from typing import Union
 
-# from foliant.preprocessors.base import BasePreprocessor
-from foliant.utils import output
-from foliant.preprocessors.utils.combined_options import CombinedOptions, Options
+from foliant.preprocessors.utils.combined_options import CombinedOptions
+from foliant.preprocessors.utils.combined_options import Options
 from foliant.preprocessors.utils.preprocessor_ext import BasePreprocessorExt
+from foliant.utils import output
 
-
-OptionValue = Union[int, float, bool, str]
 
 BUFFER_TAG = '_plantuml'
 PIPE_DELIMITER = '_~_diagram_sep_~_'
 
 
-class PlantUMLPipeQueue:
-    def __init__(self, logger, quiet):
-        self.logger = logger
-        self.quiet = quiet
-        self.queue = {}
-        self.QueueElement = namedtuple('QueueElement', 'args sources filenames')
-
-    def add_to_queue(self, cmd_args: list, diagram_src: str, output_filename: str):
-        self.logger.debug('Adding diagram to queue')
-
-        key = ' '.join(cmd_args)
-
-        _, sources, filenames = self.queue.setdefault(key, self.QueueElement(cmd_args, [], []))
-        sources.append(diagram_src)
-        filenames.append(output_filename)
-
-        self.logger.debug('Diagram added to queue')
-
-    def execute(self):
-        self.logger.debug(f'Generating diagrams. Number of queues: {len(self.queue)}')
-        pipe_args = ['-pipe', '-pipeNoStderr', '-pipedelimitor', PIPE_DELIMITER]
-
-        for args, sources, filenames in self.queue.values():
-            self.logger.debug(f'Queue started. Number of diagrams: {len(sources)}')
-            full_args = [*args, *pipe_args]
-            p = Popen(full_args, stdout=PIPE, stdin=PIPE, stderr=PIPE)
-
-            input_str = '\n\n'.join(sources).encode()
-            r = p.communicate(input_str)
-
-            results = r[0].split(PIPE_DELIMITER.encode())
-            self.logger.debug(f'Queue processed. Number of results: {len(results)}')
-
-            for bytes_, dest in zip(results, filenames):
-                if bytes_.strip().startswith(b'ERROR'):
-                    message = f'Failed to generate diagram {dest}:\n{bytes_.decode()}'
-                    self.logger.warning(message)
-                    output(message, self.quiet)
-                else:
-                    with open(dest, 'wb') as f:
-                        f.write(bytes_.strip())
+OptionValue = Union[int, float, bool, str]
+QueueElement = namedtuple('QueueElement', 'args sources filenames')
 
 
 def get_diagram_format(options: CombinedOptions) -> str:
@@ -100,7 +62,18 @@ def parse_diagram_source(source: str) -> Optional[str]:
         return None
 
 
-def generate_components(original_params: dict, diag_format: str, plantuml_path: str):
+def generate_args(original_params: dict, diag_format: str, plantuml_path: str) -> list:
+    """
+    Generate a list of command line arguments needed to build this diagram. The list is sorted
+    in alphabetical order except the first argument (plantuml path).
+
+    :param original_params: cmd params as stated by user ('params' key from diagram options).
+    :param diag_format: output format of the diagram without without leading dot (e.g. 'png').
+    :param plantuml_path: path to plantuml executable.
+
+    :returns: list of command line arguments ready to be fed to Popen.
+    """
+
     components = [plantuml_path]
 
     params = {k: v for k, v in original_params.items() if not k.lower().startswith('t')}
@@ -113,6 +86,29 @@ def generate_components(original_params: dict, diag_format: str, plantuml_path: 
             components.extend((f'-{option_name}', f'{option_value}'))
 
     return components
+
+
+def generate_buffer_tag(diagram_path: PosixPath, options: Options) -> str:
+    '''
+    Generate a buffer tag which should be put in place of a PlantUML diagram in Markdown source.
+
+    After processing the queue these tags should be replaced by Markdown image tags or inline
+    diagram code.
+
+    :param diagram_path: path to the generated diagram image file (if not in cache, it doesn't exist
+                         at this stage).
+    :param options: diagram options.
+
+    :returns string with a generated buffer tag:
+    '''
+    allow_inline = ('.svg',)
+
+    inline = diagram_path.suffix in allow_inline and options['as_image'] is False
+    caption = options.get('caption', '')
+
+    result = f'<{BUFFER_TAG} file="{diagram_path}" inline="{inline}" caption="{caption}"></{BUFFER_TAG}>'
+
+    return result
 
 
 class Preprocessor(BasePreprocessorExt):
@@ -131,40 +127,71 @@ class Preprocessor(BasePreprocessorExt):
         self._cache_path = self.project_path / self.options['cache_dir'] / 'plantuml'
 
         self.logger = self.logger.getChild('plantuml')
-        self._queue = PlantUMLPipeQueue(self.logger, self.quiet)
+        self._queue = {}
 
         self.logger.debug(f'Preprocessor inited: {self.__dict__}')
 
-    def _generate_buffer_tag(self, diagram_path: PosixPath, options: CombinedOptions, diagram_format: str):
-        '''Get either image ref or a marker for raw image code post insertion depending on as_image option'''
-        allow_inline = ('svg',)
+    def process_plantuml(self, content: str) -> str:
+        '''
+        Find diagram definitions and replace them buffer tags. These tags will be processed
+        on the second pass.
 
-        inline = diagram_format in allow_inline and options['as_image'] is False
-        caption = options.get('caption', '')
+        The definitions are saved into the queue which will be executed after the first pass
+        is finished.
 
-        result = f'<{BUFFER_TAG} file="{diagram_path}" inline="{inline}" caption="{caption}"></{BUFFER_TAG}>'
-        self.logger.debug(f'Generated buffer tag: {result}')
+        :param content: chapter's markdown content
 
-        return result
+        :returns: Markdown content with diagrams definitions replaced with buffer tags.
+        '''
 
-        # if diagram_format in allow_inline and options['as_image'] is False:
-        #     self._need_post_process_inline = True
-        #     return f'<{INLINE_TAG} file="{diagram_path}"></{INLINE_TAG}>'
-        # else:
-        #     return f'![{options.get("caption", "")}]({diagram_path.absolute().as_posix()})'
+        raw_pattern = re.compile(
+            r'(?:^|\n)(?P<spaces>[ \t]*)(?P<body>@startuml.+?@enduml)',
+            flags=re.DOTALL
+        )
 
-    def _process_plantuml(self, options: Options, body: str) -> str:
-        '''Save PlantUML diagram body to .diag file, generate an image from it,
-        and return the image ref.
+        def _sub_tags(diagram) -> str:
+            '''Sub function for <plantuml> tags.'''
+            options = CombinedOptions(
+                {
+                    'config': self.options,
+                    'tag': self.get_options(diagram.group('options'))
+                },
+                priority='tag'
+            )
+            return self._process_diagram(options, diagram.group('body'))
 
-        If the image for this diagram has already been generated, the existing version
-        is used.
+        def _sub_raw(diagram) -> str:
+            '''
+            Sub function for raw diagrams replacement (without ``<plantuml>``
+            tags). Handles alternation and returns spaces which were used to
+            filter out inline mentions of ``@startuml``.
+            '''
+
+            spaces = diagram.group('spaces')
+            body = diagram.group('body')
+            return spaces + self._process_diagram(Options(self.options), body)
+
+        processed = self.pattern.sub(_sub_tags, content)
+
+        if self.options['parse_raw']:
+            processed = raw_pattern.sub(_sub_raw, processed)
+
+        return processed
+
+    def _process_diagram(self, options: Options, body: str) -> str:
+        '''
+        Add PlantUML diagram to execution queue if it was not found in cache. Save the diagram
+        source into .diag file for debug.
+
+        Finally, replace diagram definition with a buffer tag. After the queue is processed
+        this tag will be replaced by Markdown image or inline diagram code.
 
         :param options: Options extracted from the diagram definition
         :param body: PlantUML diagram body
 
-        :returns: Image ref
+        :returns: Buffer tag to be processed on the second pass.
         '''
+
         diagram_source = parse_diagram_source(body)
         if not diagram_source:
             self._warning('Cannot parse diagram body. Have you forgotten @startuml or @enduml?')
@@ -175,7 +202,7 @@ class Preprocessor(BasePreprocessorExt):
         self.logger.debug(f'Processing PlantUML diagram, options: {options}, body: {body}')
 
         diag_format = get_diagram_format(options)
-        cmd_args = generate_components(options.get('params', {}), diag_format, options['plantuml_path'])
+        cmd_args = generate_args(options.get('params', {}), diag_format, options['plantuml_path'])
 
         body_hash = md5(f'{cmd_args}{body}'.encode())
         diag_output_path = self._cache_path / f'{body_hash.hexdigest()}.{diag_format}'
@@ -183,63 +210,74 @@ class Preprocessor(BasePreprocessorExt):
         if diag_output_path.exists():
             self.logger.debug('Diagram image found in cache')
         else:
-            self._queue.add_to_queue(cmd_args, diagram_source, diag_output_path)
+            self.logger.debug('Adding diagram to queue')
+            self._add_to_queue(cmd_args, diagram_source, diag_output_path)
+            self.logger.debug('Diagram added to queue')
 
         # saving diagram source into file for debug
         diag_src_path = diag_output_path.with_suffix('.diag')
         with open(diag_src_path, 'w', encoding='utf8') as diag_src_file:
             diag_src_file.write(body)
 
-        return self._generate_buffer_tag(diag_output_path, options, diag_format)
+        buffer_tag = generate_buffer_tag(diag_output_path, options)
+        self.logger.debug(f'Generated buffer tag: {buffer_tag}')
+        return buffer_tag
 
-    def process_plantuml(self, content: str) -> str:
-        '''Find diagram definitions and replace them with image refs.
+    def _add_to_queue(self, cmd_args: list, diagram_src: str, output_filename: str):
+        """
+        Add diagram to execution queue. The queue is groupped by cmd_args so diagrams
+        with the same settings will be processed by a single PlantUML instance.
 
-        The definitions are fed to PlantUML processor that convert them into images.
+        :param cmd_args: list of command line arguments for the diagram.
+        :param diagram_src: source code of the diagram.
+        :param output_filename: destination path of the generated diagram.
+        """
 
-        :param content: Markdown content
+        key = ' '.join(cmd_args)
 
-        :returns: Markdown content with diagrams definitions replaced with image refs
-        '''
+        _, sources, filenames = self._queue.setdefault(key, QueueElement(cmd_args, [], []))
+        sources.append(diagram_src)
+        filenames.append(output_filename)
 
-        raw_pattern = re.compile(
-            r'(?:^|\n)(?P<spaces>[ \t]*)(?P<body>@startuml.+?@enduml)',
-            flags=re.DOTALL
-        )
+    def execute_queue(self):
+        """
+        Generate all diagrams which were scheduled in the queue. The queue is groupped by
+        cmd_args so diagrams with the same settings will be processed by a single PlantUML
+        instance.
+        """
 
-        def _sub(diagram) -> str:
-            options = CombinedOptions(
-                {
-                    'config': self.options,
-                    'tag': self.get_options(diagram.group('options'))
-                },
-                priority='tag'
-            )
-            return self._process_plantuml(
-                options,
-                diagram.group('body')
-            )
+        self.logger.debug(f'Generating diagrams. Number of queues: {len(self._queue)}')
+        pipe_args = ['-pipe', '-pipeNoStderr', '-pipedelimitor', PIPE_DELIMITER]
 
-        def _sub_raw(diagram) -> str:
-            '''
-            Sub function for raw diagrams replacement (without ``<plantuml>``
-            tags). Handles alternation and returns spaces which were used to
-            filter out inline mentions of ``@startuml``
-            '''
+        for args, sources, filenames in self._queue.values():
+            self.logger.debug(f'Queue started. Number of diagrams: {len(sources)}')
+            full_args = [*args, *pipe_args]
+            self.logger.debug(f'Generating diagrams from queue, command: {" ".join(full_args)}')
+            p = Popen(full_args, stdout=PIPE, stdin=PIPE, stderr=PIPE)
 
-            spaces = diagram.group('spaces')
-            body = diagram.group('body')
-            return spaces + self._process_plantuml(Options(self.options), body)
+            input_str = '\n\n'.join(sources).encode()
+            r = p.communicate(input_str)
 
-        # Process tags
-        processed = self.pattern.sub(_sub, content)
-        # Process raw diagrams
-        if self.options['parse_raw']:
-            processed = raw_pattern.sub(_sub_raw, processed)
+            results = r[0].split(PIPE_DELIMITER.encode())
+            self.logger.debug(f'Queue processed. Number of results: {len(results)}')
 
-        return processed
+            for bytes_, dest in zip(results, filenames):
+                if bytes_.strip().startswith(b'ERROR'):
+                    message = f'{"*"*10}\nFailed to generate diagram {dest}:\n{bytes_.decode()}'
+                    self.logger.warning(message)
+                    output(message, self.quiet)
+                else:
+                    with open(dest, 'wb') as f:
+                        f.write(bytes_.strip())
 
     def replace_buffers(self, match):
+        """
+        re.sub function
+
+        Replaces buffer tags, which were left in places of diagrams on the first pass, by
+        Markdown image tags or by inline diagram code.
+        """
+
         self.logger.debug(f'processing buffer tag: {match.group(0)}')
         options = self.get_options(match.group('options'))
         diag_path = Path(options['file'])
@@ -250,11 +288,12 @@ class Preprocessor(BasePreprocessorExt):
         if options['inline']:
             with open(diag_path) as f:
                 diagram_source = f.read()
-            result = f'<div>{diagram_source}</div>'
+            return f'<div>{diagram_source}</div>'
 
-            # remove plantuml md5 comment because it contains diagram definition
-            md5_pattern = re.compile(r'<!--MD5.+?-->', re.DOTALL)
-            return md5_pattern.sub('', result)
+            # # remove plantuml md5 comment because it contains diagram definition
+            # # (proved not necessary after 1.0.9)
+            # md5_pattern = re.compile(r'<!--MD5.+?-->', re.DOTALL)
+            # return md5_pattern.sub('', result)
         else:
             caption = options.get('caption', '')
             image_path = diag_path.absolute().as_posix()
@@ -262,7 +301,7 @@ class Preprocessor(BasePreprocessorExt):
 
     def apply(self):
         self._process_all_files(func=self.process_plantuml)
-        self._queue.execute()
+        self.execute_queue()
 
         self._process_tags_for_all_files(func=self.replace_buffers)
 
