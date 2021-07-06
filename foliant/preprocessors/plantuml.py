@@ -16,6 +16,7 @@ from typing import Union
 from foliant.preprocessors.utils.combined_options import CombinedOptions
 from foliant.preprocessors.utils.combined_options import Options
 from foliant.preprocessors.utils.preprocessor_ext import BasePreprocessorExt
+from foliant.preprocessors.utils.preprocessor_ext import allow_fail
 from foliant.utils import output
 
 
@@ -178,6 +179,7 @@ class Preprocessor(BasePreprocessorExt):
 
         return processed
 
+    @allow_fail()
     def _process_diagram(self, options: Options, body: str) -> str:
         '''
         Add PlantUML diagram to execution queue if it was not found in cache. Save the diagram
@@ -202,7 +204,10 @@ class Preprocessor(BasePreprocessorExt):
         self.logger.debug(f'Processing PlantUML diagram, options: {options}, body: {body}')
 
         diag_format = get_diagram_format(options)
-        cmd_args = generate_args(options.get('params', {}), diag_format, options['plantuml_path'])
+        original_params = options.get('params', {})
+        if not isinstance(original_params, dict):
+            raise ValueError(f'"params" should be dict, got {type(original_params).__name__}')
+        cmd_args = generate_args(original_params, diag_format, options['plantuml_path'])
 
         body_hash = md5(f'{cmd_args}{body}'.encode())
         diag_output_path = self._cache_path / f'{body_hash.hexdigest()}.{diag_format}'
@@ -258,8 +263,8 @@ class Preprocessor(BasePreprocessorExt):
             input_str = '\n\n'.join(sources).encode()
             r = p.communicate(input_str)
 
-            results = r[0].split(PIPE_DELIMITER.encode())
-            self.logger.debug(f'Queue processed. Number of results: {len(results)}')
+            results = r[0].split(PIPE_DELIMITER.encode())[:-1]
+            self.logger.debug(f'Queue processed. Number of results: {len(results)}.')
 
             for bytes_, dest in zip(results, filenames):
                 if bytes_.strip().startswith(b'ERROR'):
