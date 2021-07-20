@@ -13,8 +13,8 @@ from subprocess import Popen
 from typing import Optional
 from typing import Union
 
-from foliant.preprocessors.utils.combined_options import CombinedOptions
-from foliant.preprocessors.utils.combined_options import Options
+from foliant.contrib.combined_options import CombinedOptions
+from foliant.contrib.combined_options import Options
 from foliant.preprocessors.utils.preprocessor_ext import BasePreprocessorExt
 from foliant.preprocessors.utils.preprocessor_ext import allow_fail
 from foliant.utils import output

@@ -1,3 +1,7 @@
+# 1.0.10
+
+-   New utils module.
+
 # 1.0.9
 
 -   Diagrams with same options now generate in single PlantUML instance.
