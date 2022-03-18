@@ -112,13 +112,15 @@ def generate_buffer_tag(diagram_path: PosixPath, options: Options) -> str:
     return result
 
 
+
 class Preprocessor(BasePreprocessorExt):
     defaults = {
         'cache_dir': Path('.diagramscache'),
         'plantuml_path': 'plantuml',
         'parse_raw': False,
         'format': 'png',
-        'as_image': True
+        'as_image': True,
+        'src': None,
     }
     tags = ('plantuml', BUFFER_TAG)
 
@@ -179,6 +181,25 @@ class Preprocessor(BasePreprocessorExt):
 
         return processed
 
+    def get_diagram_source(self, src: Optional[str], body: str) -> Optional[str]:
+        '''Determine diagram source contents to render.
+
+        if tag has a `src` attribute, attempt to read the contents from the
+        provided path.'''
+        diagram_source = body
+        if src:
+            actual_path = Path(self.working_dir) / src
+
+            try:
+                with open(actual_path, 'r', encoding='utf8') as puml_file:
+                    diagram_source = puml_file.read()
+            except OSError as os_err:
+                self._warning(
+                    "{} when reading file {}".format(os_err.strerror, src),
+                )
+
+        return parse_diagram_source(diagram_source)
+
     @allow_fail()
     def _process_diagram(self, options: Options, body: str) -> str:
         '''
@@ -193,8 +214,8 @@ class Preprocessor(BasePreprocessorExt):
 
         :returns: Buffer tag to be processed on the second pass.
         '''
+        diagram_source = self.get_diagram_source(options['src'], body)
 
-        diagram_source = parse_diagram_source(body)
         if not diagram_source:
             self._warning('Cannot parse diagram body. Have you forgotten @startuml or @enduml?')
             return ''

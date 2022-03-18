@@ -1,0 +1,10 @@
+@startuml
+
+if (has_tag) then (yes)
+    :read from file;
+
+else
+    :read tag body;
+endif
+
+@enduml
