@@ -99,3 +99,17 @@ class TestPlantuml(TestCase):
 
         images = re.findall(r'<svg .+?</svg>', result, flags=re.DOTALL)
         self.assertEqual(len(images), 2)
+
+    def test_read_from_file(self):
+        self.ptf.test_preprocessor(
+            input_mapping=unpack_file_dict(
+                {
+                    'index.md': rel_name('data/read_from_tag.md'),
+                    'diagram.puml': rel_name('data/diagram.puml'),
+                }
+            )
+        )
+
+        result = self.ptf.results['index.md']
+        images = re.findall(r'!\[\]\(.+\)', result)
+        self.assertEqual(len(images), 1)
