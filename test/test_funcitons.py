@@ -1,7 +1,7 @@
 from unittest import TestCase
 from pathlib import Path
 
-from foliant.preprocessors.utils.combined_options import Options
+from foliant.contrib.combined_options import Options
 from foliant.preprocessors.plantuml import get_diagram_format
 from foliant.preprocessors.plantuml import parse_diagram_source
 from foliant.preprocessors.plantuml import generate_args
