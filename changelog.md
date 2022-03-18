@@ -1,3 +1,7 @@
+# unreleased
+
+-   Add `src` attribute to plantuml tag to read diagram from file.
+
 # 1.0.10
 
 -   New utils module.
